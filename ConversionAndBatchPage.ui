@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ConversionAndBatchPage</class>
+ <widget class="QWizardPage" name="ConversionAndBatchPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>502</width>
+    <height>477</height>
+   </rect>
+  </property>
+  <property name="title">
+   <string>Step 3: Conversion Parameters and Batch Conversion</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+  
+   <!-- Conversion Parameters Form -->
+   <item>
+    <layout class="QFormLayout" name="conversionFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="bloHLabel">
+       <property name="text">
+        <string>Image Height (blo):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="bloHSpin">
+       <property name="maximum">
+        <number>10000</number>
+       </property>
+       <property name="value">
+        <number>255</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   
+   <!-- Use Filter Checkbox -->
+   <item>
+    <widget class="QCheckBox" name="useFilterCheck">
+     <property name="text">
+      <string>Use Filter</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   
+   <!-- Batch Conversion Form -->
+   <item>
+    <layout class="QFormLayout" name="batchFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="medianLabel">
+       <property name="text">
+        <string>Median:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="medianSpin">
+       <property name="maximum">
+        <number>1000</number>
+       </property>
+       <property name="value">
+        <number>4</number>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="gaussianLabel">
+       <property name="text">
+        <string>Gaussian:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="gaussianLineEdit">
+       <property name="text">
+        <string>4,2.0</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="binningLabel">
+       <property name="text">
+        <string>Binning:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QSpinBox" name="binningSpin">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>10</number>
+       </property>
+       <property name="value">
+        <number>1</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   
+   <!-- Progress Bar -->
+   <item>
+    <widget class="QProgressBar" name="progressBar">
+     <property name="minimum">
+      <number>0</number>
+     </property>
+     <property name="maximum">
+      <number>100</number>
+     </property>
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
+   
+   <!-- Conversion Buttons -->
+   <item>
+    <layout class="QHBoxLayout" name="conversionButtonLayout">
+     <item>
+      <widget class="QPushButton" name="runSingleConversionButton">
+       <property name="text">
+        <string>Run Single Conversion</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   
+   <!-- Log TextEdit -->
+   <item>
+    <widget class="QTextEdit" name="logTextEdit">
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOn</enum>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="plainText">
+      <string>No conversion output yet.</string>
+     </property>
+    </widget>
+   </item>
+   
+   <!-- Additional Files Group -->
+   <item>
+    <widget class="QGroupBox" name="fileListGroup">
+     <property name="title">
+      <string>Additional Files</string>
+     </property>
+     <layout class="QVBoxLayout" name="fileListLayout">
+      <item>
+       <widget class="QPushButton" name="addTaskButton">
+        <property name="text">
+         <string>Add Task</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="addFileButton">
+        <property name="text">
+         <string>Add File</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QListWidget" name="fileListWidget">
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOn</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="runConversionButton">
+        <property name="text">
+         <string>Run Batch Conversion</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
