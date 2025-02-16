@@ -63,12 +63,22 @@ Analyze the image by clicking on it to update the starting frame.
 Step 3: Conversion & Batch Conversion
 
 Configure conversion parameters (e.g., image height, median, Gaussian, binning).
+
+
 Use the Run Single Conversion button to convert an individual file.
+
+
 Use the Add Task and Add File buttons to build a list of additional HDF5 files.
+
+
 Finally, click Run Batch Conversion to process all the files in the list.
 Progress and log messages are displayed in the interface.
-Contributing
+
+
+### Contributing
 Contributions, suggestions, and bug reports are welcome!
+
+
 Please open an issue or submit a pull request to contribute.
 
 ### License
