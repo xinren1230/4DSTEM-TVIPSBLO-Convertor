@@ -52,10 +52,14 @@ Step 1: Parameter Selection & Mask Check
 Select your TVIPS file and set required parameters.
 Verify and adjust the mask using the draggable mask interface.
 The suggested starting frame will be updated based on your input.
+
+
 Step 2: Virtual BF Generation & Analysis
 
 Generate the virtual BF image.
 Analyze the image by clicking on it to update the starting frame.
+
+
 Step 3: Conversion & Batch Conversion
 
 Configure conversion parameters (e.g., image height, median, Gaussian, binning).
