@@ -42,8 +42,14 @@ Ensure you have the following installed:
    cd 4DSTEM-Processing-Wizard
    
 conda create -n TVIPSBLO python=3.7
+
+
 conda activate TVIPSBLO
+
+
 pip install PyQt5 numpy h5py opencv-python scipy scikit-image matplotlib
+
+
 python tvipsGUI.py
 
 ### Usage
