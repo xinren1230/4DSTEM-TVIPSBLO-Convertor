@@ -163,7 +163,7 @@ class ParameterAndMaskCheckPage(QWizardPage):
     def __init__(self, parent=None):
         super().__init__(parent)
         uic.loadUi("ParameterAndMaskCheckPage.ui", self)
-        # Register fields (ensure UI object names match these)
+        # Register fields (ensure UI control names match)
         self.registerField("vbfH", self.vbfHSpin)
         self.registerField("vbfW", self.vbfWSpin)
         self.registerField("tvipsFile*", self.tvipsFileLineEdit)
@@ -193,8 +193,23 @@ class ParameterAndMaskCheckPage(QWizardPage):
         self.draggableMask.offsetUpdated.connect(self.updateOffsetSpinBoxes)
         self.draggableMask.maskMoved.connect(self.updateMaskPositionLabel)
 
-        # Flag to indicate whether the mask has been checked.
+        # Flag indicating whether the mask has been checked.
         self.maskChecked = False
+
+        # Connect guessFirstFrameSpin's valueChanged signal to sync with system property "firstFrame"
+        self.guessFirstFrameSpin.valueChanged.connect(self.firstFrameChanged)
+
+    @pyqtSlot(int)
+    def firstFrameChanged(self, value):
+        wizard = self.wizard()
+        if wizard:
+            wizard.setProperty("firstFrame", value)
+            # Sync update the newGuessSpin on page 2
+            page2 = wizard.page(1)
+            if hasattr(page2, "newGuessSpin"):
+                page2.newGuessSpin.blockSignals(True)
+                page2.newGuessSpin.setValue(value)
+                page2.newGuessSpin.blockSignals(False)
 
     def initializePage(self):
         # Set default Virtual BF dimensions and reset the mask flag.
@@ -212,8 +227,7 @@ class ParameterAndMaskCheckPage(QWizardPage):
         if fname:
             self.tvipsFileLineEdit.setText(fname)
             self.guessFirstFrameSpin.setValue(1)
-        
-        
+            
     @pyqtSlot()
     def checkMaskPosition(self):
         file_path = self.tvipsFileLineEdit.text().strip()
@@ -269,7 +283,7 @@ class ParameterAndMaskCheckPage(QWizardPage):
         pos = self.draggableMask.getMaskCenter()
         if pos:
             self.maskPositionLabel.setText(f"Mask Position: ({pos[0]}, {pos[1]})")
-        # Mark the mask as checked and notify the wizard that the page is complete.
+        # Mask check complete; notify wizard that this page is complete.
         self.maskChecked = True
         self.completeChanged.emit()
 
@@ -294,7 +308,6 @@ class ParameterAndMaskCheckPage(QWizardPage):
     def updateMaskPositionLabel(self, pos):
         self.maskPositionLabel.setText(f"Mask Position: ({pos[0]}, {pos[1]})")
 
-
 # ---------------- Page 2: VBF Generation & Analysis ----------------
 class VBFMergedPage(QWizardPage):
     def __init__(self, parent=None):
@@ -302,36 +315,53 @@ class VBFMergedPage(QWizardPage):
         uic.loadUi("VBF_MergedPage.ui", self)
         self.processFinished = False
 
-        # Set up the matplotlib canvas inside the plot container.
+        # Set up the matplotlib canvas in the plot container.
         self.figure = Figure(figsize=(5, 3))
         self.canvas = FigureCanvas(self.figure)
         self.rerunButton.clicked.connect(self.rerunVBF)
 
-        # Install event filter on the vbfImageLabel so that clicks update newGuessSpin.
+        # Install event filter on vbfImageLabel to update newGuessSpin when clicked.
         self.vbfImageLabel.installEventFilter(self)
 
-        # Flag to ensure we connect the spin box signals only once.
+        # Flag to ensure that spin box signal connections are added only once.
         self._vbf_spin_connections_added = False
+
+        # Connect newGuessSpin's valueChanged signal to sync with system property "firstFrame"
+        self.newGuessSpin.valueChanged.connect(self.newGuessFrameChanged)
+
+    @pyqtSlot(int)
+    def newGuessFrameChanged(self, value):
+        wizard = self.wizard()
+        if wizard:
+            wizard.setProperty("firstFrame", value)
+            # Sync update the guessFirstFrameSpin on page 1
+            page1 = wizard.page(0)
+            if hasattr(page1, "guessFirstFrameSpin"):
+                page1.guessFirstFrameSpin.blockSignals(True)
+                page1.guessFirstFrameSpin.setValue(value)
+                page1.guessFirstFrameSpin.blockSignals(False)
 
     def eventFilter(self, obj, event):
         if obj == self.vbfImageLabel and event.type() == QEvent.MouseButtonPress:
             pos = event.pos()
-            # Retrieve the current starting frame; default to 0 if not set.
+            # Get the current starting frame; default to 0 if not set.
             first_frame = self.wizard().property("firstFrame") or 0
-            # Retrieve the original virtual BF image width (vbfW parameter)
+            # Get the original Virtual BF image width (vbfW parameter)
             vbf_w = int(self.field("vbfW") or 256)
             # Calculate the scaling factor between the original width and the label's width.
             scaling_factor = vbf_w / self.vbfImageLabel.width()
-            # Update the starting frame based on the click position.
+            # Update the starting frame based on click position.
             first_frame = first_frame + int(pos.x() * scaling_factor)
-            # Update the newGuessSpin control on the current page.
+            # Update newGuessSpin control on the current page.
             self.newGuessSpin.setValue(first_frame)
-            # Store the new starting frame in the wizard's property.
+            # Save the new starting frame to the wizard's property.
             self.wizard().setProperty("firstFrame", first_frame)
-            # Update the guessFirstFrameSpin on the first page (assumed to be at index 0).
-            first_page = self.wizard().page(0)
-            if hasattr(first_page, "guessFirstFrameSpin"):
-                first_page.guessFirstFrameSpin.setValue(first_frame)
+            # Sync update the guessFirstFrameSpin on page 1 (assuming page index 0)
+            page1 = self.wizard().page(0)
+            if hasattr(page1, "guessFirstFrameSpin"):
+                page1.guessFirstFrameSpin.blockSignals(True)
+                page1.guessFirstFrameSpin.setValue(first_frame)
+                page1.guessFirstFrameSpin.blockSignals(False)
             return True
         return super(VBFMergedPage, self).eventFilter(obj, event)
 
@@ -360,13 +390,11 @@ class VBFMergedPage(QWizardPage):
             proc.start(cmd)
             proc.waitForFinished()
 
-        # Synchronize the Virtual BF dimensions with the first page.
+        # Synchronize Virtual BF dimensions to corresponding controls on page 1.
         first_page = self.wizard().page(0)
         if hasattr(first_page, "vbfHSpin") and hasattr(first_page, "vbfWSpin"):
-            # Set initial values for this page's spin boxes based on the first page.
             self.vbfHSpin.setValue(first_page.vbfHSpin.value())
             self.vbfWSpin.setValue(first_page.vbfWSpin.value())
-            # Connect changes on this page to update the first page (only once).
             if not self._vbf_spin_connections_added:
                 self.vbfHSpin.valueChanged.connect(lambda val: first_page.vbfHSpin.setValue(val))
                 self.vbfWSpin.valueChanged.connect(lambda val: first_page.vbfWSpin.setValue(val))
@@ -411,7 +439,6 @@ class VBFMergedPage(QWizardPage):
                 vbf = np.array(n1)
             pixmap = convert_np_to_pixmap(vbf)
             if pixmap:
-                # Display the original size image in vbfImageLabel.
                 self.vbfImageLabel.setPixmap(pixmap)
             else:
                 self.vbfImageLabel.setText("Error converting image.")
@@ -459,7 +486,7 @@ class ConversionAndBatchPage(QWizardPage):
         self.addFileButton.clicked.connect(self.addFile)
         self.addTaskButton.clicked.connect(self.addtask)
 
-        # This flag indicates whether the conversion process has completed.
+        # Flag indicating whether the conversion process has completed.
         self._conversion_complete = False
 
         # Internal list to store file paths (HDF5 files)
@@ -470,18 +497,14 @@ class ConversionAndBatchPage(QWizardPage):
         return self._conversion_complete
 
     def addFile(self):
-        # Open a file dialog to choose a file (e.g., a BLO file or another HDF5 file)
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Select File", "", "HDF5 Files (*.h5);;All Files (*.*)"
         )
         if file_path:
-
-            # Add the file name (or full path) to the list widget for display
             self.fileListWidget.addItem(file_path)
             self.logTextEdit.append(f"Added file: {file_path}")
 
     def addtask(self):
-        # Save conversion parameters to the HDF5 file specified in hf_path
         try:
             hf_path = self.wizard().property("hfPath")
             first_frame = self.wizard().property("firstFrame")
@@ -500,21 +523,17 @@ class ConversionAndBatchPage(QWizardPage):
                 g1.create_dataset('Starting_frame', data=first_frame)
                 g1.create_dataset('Image_height', data=blo_h)
                 g1.create_dataset('Image_width', data=vbf_w)
-                # Corrected dataset name from 'Image_constrast' to 'Image_contrast'
                 g1.create_dataset('Image_contrast', data=linescale)
                 g1.create_dataset('File_path', data=file_path)
                 g1.create_dataset('Diff_size', data=diff_size)
 
             self.logTextEdit.append("Conversion parameters saved successfully.")
-            # Add the HDF5 file path to our file list (if desired)
             self.logTextEdit.append(f"Added file: {hf_path}")
             self.fileListWidget.addItem(hf_path)
         except Exception as e:
             self.logTextEdit.append(f"Error saving conversion parameters: {e}")
 
-            
     def runSingleConversion(self):
-        # Run conversion for a single file (hf_path from wizard properties)
         try:
             hf_path = self.wizard().property("hfPath")
             first_frame = self.wizard().property("firstFrame")
@@ -604,9 +623,7 @@ class ConversionAndBatchPage(QWizardPage):
                     with h5py.File(file, 'r') as hf:
                         g1_name = 'Parameters_for_conversion'
                         n1 = hf.get(g1_name)
-                        # Assuming the dataset name is "Image_contrast"
                         linescale_dataset = n1.get('Image_contrast')[()]
-                        # Convert the dataset value to a string for the command-line parameter.
                         linescale_string = ' --linscale=' + str(linescale_dataset)[1:].replace("'", "")
                         image_string = ' --dimension=' + str(n1.get('Image_height')[()]) + 'x' + str(n1.get('Image_width')[()])
                         skip_string = ' --skip=' + str(n1.get('Starting_frame')[()])
@@ -634,7 +651,6 @@ class ConversionAndBatchPage(QWizardPage):
         except Exception as e:
             self.logTextEdit.append(f"Error in runBatchConversion: {e}")
 
-
     def handleOutput(self):
         data = self.process.readAllStandardOutput().data().decode()
         self.logTextEdit.append(data)
@@ -648,13 +664,11 @@ class ConversionAndBatchPage(QWizardPage):
         self._conversion_complete = True
         self.completeChanged.emit()
 
-
-
 # ---------------- Main Wizard ----------------
 class MyWizard(QWizard):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("4DSTEM TVIPS to BLO convertor")
+        self.setWindowTitle("4DSTEM TVIPS to BLO Converter")
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
         self.addPage(ParameterAndMaskCheckPage())
         self.addPage(VBFMergedPage())
