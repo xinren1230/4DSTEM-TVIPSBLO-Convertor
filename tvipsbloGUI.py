@@ -173,7 +173,6 @@ class ParameterAndMaskCheckPage(QWizardPage):
         self.registerField("offsetX", self.offsetXSpin)
         self.registerField("offsetY", self.offsetYSpin)
         self.registerField("radius", self.radiusSpin)
-        self.registerField("scale", self.scaleSpin)
         self.registerField("guessFirstFrame", self.guessFirstFrameSpin)
 
         self.browseButton.clicked.connect(self.browseFile)
@@ -366,7 +365,6 @@ class VBFMergedPage(QWizardPage):
         return super(VBFMergedPage, self).eventFilter(obj, event)
 
     def initializePage(self):
-        scale_percentage = int(self.field("scale") or 20)
         offsetX = int(self.field("offsetX") or 4)
         offsetY = int(self.field("offsetY") or 4)
         radius = int(self.field("radius") or 10)

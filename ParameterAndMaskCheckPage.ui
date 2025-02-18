@@ -98,6 +98,19 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="1">
+       <widget class="QPushButton" name="checkMaskButton">
+        <property name="minimumSize">
+         <size>
+          <width>400</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Check Mask Position</string>
+        </property>
+       </widget>
+      </item>
       <item row="5" column="0">
        <widget class="QLabel" name="guessFirstFrameLabel">
         <property name="text">
@@ -155,39 +168,6 @@
         </property>
         <property name="value">
          <number>256</number>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QPushButton" name="checkMaskButton">
-        <property name="minimumSize">
-         <size>
-          <width>400</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Check Mask Position</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="scaleLabel">
-        <property name="text">
-         <string>Scale Percentage (%):</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
-       <widget class="QSpinBox" name="scaleSpin">
-        <property name="minimum">
-         <number>1</number>
-        </property>
-        <property name="maximum">
-         <number>100</number>
-        </property>
-        <property name="value">
-         <number>20</number>
         </property>
        </widget>
       </item>
