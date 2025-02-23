@@ -610,24 +610,22 @@ class ConversionAndBatchPage(QWizardPage):
             binning_string = '' if binning == 1 else f" --binning={binning}"
 
             # Update the internal file list from fileListWidget
-            self.file_list = []
-            for index in range(self.fileListWidget.count()):
-                item = self.fileListWidget.item(index)
-                self.file_list.append(item.text())
+            self.file_list = [self.fileListWidget.item(i).text() for i in range(self.fileListWidget.count())]
 
             # Loop over each file in the internal file list
+            count = 0
             for file in self.file_list:
                 try:
+                    count += 1
                     with h5py.File(file, 'r') as hf:
-                        g1_name = 'Parameters_for_conversion'
-                        n1 = hf.get(g1_name)
-                        linescale_dataset = n1.get('Image_contrast')[()]
+                        group = hf.get('Parameters_for_conversion')
+                        linescale_dataset = group.get('Image_contrast')[()]
                         linescale_string = ' --linscale=' + str(linescale_dataset)[1:].replace("'", "")
-                        image_string = ' --dimension=' + str(n1.get('Image_height')[()]) + 'x' + str(n1.get('Image_width')[()])
-                        skip_string = ' --skip=' + str(n1.get('Starting_frame')[()])
-                        file_path_string = str(n1.get('File_path')[()])[1:].replace("'", "")
-                        diff_size_value = n1.get('Diff_size')[()]
-                        diff_size_value = int(diff_size_value / binning)
+                        image_string = ' --dimension=' + str(group.get('Image_height')[()]) + 'x' + str(group.get('Image_width')[()])
+                        skip_string = ' --skip=' + str(group.get('Starting_frame')[()])
+                        file_path_string = str(group.get('File_path')[()])[1:].replace("'", "")
+                        diff_size_value = int(group.get('Diff_size')[()] / binning)
+
                     if use_filter:
                         blo_path_string = file_path_string[:-10] + '_' + str(diff_size_value) + 'F.blo'
                     else:
@@ -638,11 +636,13 @@ class ConversionAndBatchPage(QWizardPage):
                                   '"' + blo_path_string + '"')
                     self.logTextEdit.append("Running: " + run_string)
                     self.progressBar.setRange(0, 0)
+
                     self.process = QProcess(self)
                     self.process.setProcessChannelMode(QProcess.MergedChannels)
                     self.process.readyReadStandardOutput.connect(self.handleOutput)
                     self.process.readyReadStandardError.connect(self.handleOutput)
-                    self.process.finished.connect(self.conversionFinished)
+                    # Use lambda to delay the call until the process actually finishes
+                    self.process.finished.connect(lambda exitCode, exitStatus, count=count: self.conversionFinished(count))
                     self.process.start(run_string)
                 except Exception as e:
                     self.logTextEdit.append(f"Error processing file {file}: {e}")
@@ -653,14 +653,15 @@ class ConversionAndBatchPage(QWizardPage):
         data = self.process.readAllStandardOutput().data().decode()
         self.logTextEdit.append(data)
 
-    def conversionFinished(self):
+    def conversionFinished(self, count):
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(100)
         self.logTextEdit.append("Batch conversion completed!")
-        QMessageBox.information(self, "Batch Conversion", "Batch conversion completed successfully!")
+        QMessageBox.information(self, "Batch Conversion", f"Sequence: {count} conversion completed successfully!")
         # Mark conversion as complete and notify the wizard.
         self._conversion_complete = True
         self.completeChanged.emit()
+
 
 # ---------------- Main Wizard ----------------
 class MyWizard(QWizard):
