@@ -657,6 +657,40 @@ class ConversionAndBatchPage(QWizardPage):
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(100)
         self.logTextEdit.append("Batch conversion completed!")
+        # === Check if HDF5 conversion is requested ===
+        if self.convertToHDF5CheckBox.isChecked():
+            try:
+                from libertem.api import Context
+                from libertem.io.dataset.base import TilingScheme
+
+                hf_path = self.wizard().property("hfPath")
+                file_path = str(self.wizard().property("tvipsFile"))[1:].replace("'", "")
+                diff_image = self.wizard().property("diff_image")
+                diff_size = diff_image.shape[1] if diff_image is not None else -1
+                diff_size = int(diff_size / self.binningSpin.value()) if diff_size > 0 else 256
+                blo_path = file_path[:-10] + f'_{diff_size}F.blo' if self.useFilterCheck.isChecked() else file_path[:-10] + f'_{diff_size}.blo'
+                hdf5_output = blo_path.replace('.blo', '.h5')
+
+                self.logTextEdit.append("Starting BLO to HDF5 conversion...")
+                ctx = Context()
+                ds = ctx.load("blo", path=blo_path)
+
+                frames_list = []
+                for partition in ds.get_partitions():
+                    ts = TilingScheme.make_for_shape(
+                        tileshape=partition.shape, 
+                        dataset_shape=partition.shape,
+                        intent='partition'
+                    )
+                    for tile in partition.get_tiles(ts, dest_dtype='uint8'):
+                        frames_list.append(tile.data)
+
+                full_data = np.concatenate(frames_list, axis=0)
+                with h5py.File(hdf5_output, "w") as hfile:
+                    hfile.create_dataset("data", data=full_data)
+                self.logTextEdit.append(f"Saved HDF5 to: {hdf5_output}")
+            except Exception as e:
+                self.logTextEdit.append(f"Error during BLO to HDF5 conversion: {e}")
         QMessageBox.information(self, "Batch Conversion", f"Sequence: {count} conversion completed successfully!")
         # Mark conversion as complete and notify the wizard.
         self._conversion_complete = True

@@ -7,15 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>502</width>
-    <height>477</height>
+    <height>523</height>
    </rect>
   </property>
   <property name="title">
    <string>Step 3: Conversion Parameters and Batch Conversion</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-  
-   <!-- Conversion Parameters Form -->
    <item>
     <layout class="QFormLayout" name="conversionFormLayout">
      <item row="0" column="0">
@@ -37,8 +35,6 @@
      </item>
     </layout>
    </item>
-   
-   <!-- Use Filter Checkbox -->
    <item>
     <widget class="QCheckBox" name="useFilterCheck">
      <property name="text">
@@ -49,8 +45,6 @@
      </property>
     </widget>
    </item>
-   
-   <!-- Batch Conversion Form -->
    <item>
     <layout class="QFormLayout" name="batchFormLayout">
      <item row="0" column="0">
@@ -106,8 +100,13 @@
      </item>
     </layout>
    </item>
-   
-   <!-- Progress Bar -->
+   <item>
+    <widget class="QCheckBox" name="convertToHDF5CheckBox">
+     <property name="text">
+      <string>Convert to HDF5 after BLO</string>
+     </property>
+    </widget>
+   </item>
    <item>
     <widget class="QProgressBar" name="progressBar">
      <property name="minimum">
@@ -121,8 +120,6 @@
      </property>
     </widget>
    </item>
-   
-   <!-- Conversion Buttons -->
    <item>
     <layout class="QHBoxLayout" name="conversionButtonLayout">
      <item>
@@ -134,8 +131,6 @@
      </item>
     </layout>
    </item>
-   
-   <!-- Log TextEdit -->
    <item>
     <widget class="QTextEdit" name="logTextEdit">
      <property name="verticalScrollBarPolicy">
@@ -149,8 +144,6 @@
      </property>
     </widget>
    </item>
-   
-   <!-- Additional Files Group -->
    <item>
     <widget class="QGroupBox" name="fileListGroup">
      <property name="title">
@@ -188,7 +181,6 @@
      </layout>
     </widget>
    </item>
-   
   </layout>
  </widget>
  <resources/>
