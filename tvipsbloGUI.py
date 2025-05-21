@@ -235,26 +235,46 @@ class ParameterAndMaskCheckPage(QWizardPage):
             if not file_path:
                 return
             self.tvipsFileLineEdit.setText(file_path)
+
+        # Normalize and clean up paths
+        file_path = file_path.replace('\\', '/')
         self.wizard().setProperty("tvipsFile", file_path)
         file_name = os.path.basename(file_path)
         folder_path = os.path.dirname(file_path)
         file_name_hf = file_name[:-10] + ".h5"
-        hf_path = os.path.join(folder_path, file_name_hf)
+        hf_path = os.path.normpath(os.path.join(folder_path, file_name_hf)).replace('\\', '/')
         self.wizard().setProperty("hfPath", hf_path)
 
         linescale = self.field("linescale")
         numframes = self.field("whichFrame") + 1
-        run_string = (
-            'python ./tvips/recorderR.py --otype=Individual --linscale=' + str(linescale) +
-            ' --numframes=' + str(numframes) +
-            ' "' + file_path + '" "' + hf_path + '"'
-        )
-        print("Running command:", run_string)
+
+        # Use correct argument list form
+        args = [
+            "./tvips/recorderR.py",
+            "--otype=Individual",
+            "--linscale=" + str(linescale),
+            "--numframes=" + str(numframes),
+            file_path,
+            hf_path
+        ]
+
+        print("Running command: python " + " ".join(args))
         self.progressBarStep1.setRange(0, 0)
+
         self.proc1 = QProcess(self)
         self.proc1.setProcessChannelMode(QProcess.MergedChannels)
+
+        # Optional: print any output
+        self.proc1.readyReadStandardOutput.connect(lambda: print(str(self.proc1.readAllStandardOutput(), encoding='utf-8')))
+        self.proc1.readyReadStandardError.connect(lambda: print(str(self.proc1.readAllStandardError(), encoding='utf-8')))
+
         self.proc1.finished.connect(lambda ec, es: self.loadImageAfterCommand(ec, es))
-        self.proc1.start(run_string)
+
+        # Start process correctly
+        env_python = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+        self.proc1.start(env_python, args)
+
+
 
     @pyqtSlot(int, int)
     def loadImageAfterCommand(self, exitCode, exitStatus):
@@ -371,22 +391,43 @@ class VBFMergedPage(QWizardPage):
         linescale = self.field("linescale") or "0-2000"
         vbf_h = int(self.field("vbfH") or 10)
         vbf_w = int(self.field("vbfW") or 256)
-        first_frame = self.wizard().property("firstFrame")
-        if first_frame is None:
-            first_frame = 0
+        first_frame = self.wizard().property("firstFrame") or 0
         hf_path = self.wizard().property("hfPath")
+
         if not os.path.exists(hf_path):
             self.vbfOutputTextEdit.append("HDF5 file not found. Running individual image generation (step 2)...")
+
             linescale_ind = self.field("linescale")
             numframes_ind = self.field("whichFrame") + 1
             tvipsFile = self.wizard().property("tvipsFile")
-            cmd = ('python ./tvips/recorderR.py --otype=Individual --linscale=' + str(linescale_ind) +
-                   ' --numframes=' + str(numframes_ind) +
-                   ' "' + tvipsFile + '" "' + hf_path + '"')
+
+            # Normalize paths (slashes)
+            tvipsFile = tvipsFile.replace('\\', '/')
+            hf_path = hf_path.replace('\\', '/')
+
+            # Build argument list
+            args = [
+                "./tvips/recorderR.py",
+                "--otype=Individual",
+                "--linscale=" + str(linescale_ind),
+                "--numframes=" + str(numframes_ind),
+                tvipsFile,
+                hf_path
+            ]
+
+            # Full path to Python in venv
+            python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+
             proc = QProcess(self)
             proc.setProcessChannelMode(QProcess.MergedChannels)
-            proc.start(cmd)
+
+            # Optional: see output
+            proc.readyReadStandardOutput.connect(lambda: print(str(proc.readAllStandardOutput(), encoding='utf-8')))
+            proc.readyReadStandardError.connect(lambda: print(str(proc.readAllStandardError(), encoding='utf-8')))
+
+            proc.start(python_path, args)
             proc.waitForFinished()
+
 
         # Synchronize Virtual BF dimensions to corresponding controls on page 1.
         first_page = self.wizard().page(0)
@@ -401,24 +442,44 @@ class VBFMergedPage(QWizardPage):
         numframes_vbf = (vbf_h * vbf_w) + int(first_frame)
         self.vbfOutputTextEdit.clear()
         self.vbfOutputTextEdit.append("Running command to generate Virtual BF image...")
-        tvipsFile = self.wizard().property("tvipsFile")
-        command = (
-            'python ./tvips/recorderR.py --otype=VirtualBF --linscale=' + str(linescale) +
-            ' --numframes=' + str(numframes_vbf) +
-            ' --vbfradius=' + str(radius) +
-            ' --vbfcenter=' + str(offsetX) + 'x' + str(offsetY) +
-            ' --dimension=' + str(vbf_h) + 'x' + str(vbf_w) +
-            ' --skip=' + str(first_frame) +
-            ' "' + tvipsFile + '" "' + hf_path + '"'
-        )
-        self.vbfOutputTextEdit.append("Command: " + command)
+        # Normalize paths
+        tvipsFile = self.wizard().property("tvipsFile").replace('\\', '/')
+        hf_path = hf_path.replace('\\', '/')
+
+        # Build arguments
+        args = [
+            "./tvips/recorderR.py",
+            "--otype=VirtualBF",
+            "--linscale=" + str(linescale),
+            "--numframes=" + str(numframes_vbf),
+            "--vbfradius=" + str(radius),
+            "--vbfcenter=" + f"{offsetX}x{offsetY}",
+            "--dimension=" + f"{vbf_h}x{vbf_w}",
+            "--skip=" + str(first_frame),
+            tvipsFile,
+            hf_path
+        ]
+
+        # Use correct Python interpreter from virtual environment
+        python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+
+        # Update UI
+        self.vbfOutputTextEdit.clear()
+        self.vbfOutputTextEdit.append("Running command to generate Virtual BF image...")
+        self.vbfOutputTextEdit.append("Command: " + python_path + " " + " ".join(args))
+
         if hasattr(self, 'vbfProgressBar'):
             self.vbfProgressBar.setRange(0, 0)
+
+        # Setup process
         self.vbfProcess = QProcess(self)
         self.vbfProcess.setProcessChannelMode(QProcess.MergedChannels)
         self.vbfProcess.readyReadStandardOutput.connect(self.handleVBFOutput)
         self.vbfProcess.finished.connect(self.virtualBFFinished)
-        self.vbfProcess.start(command)
+
+        # Start
+        self.vbfProcess.start(python_path, args)
+
 
     def handleVBFOutput(self):
         data = self.vbfProcess.readAllStandardOutput().data().decode()
@@ -446,8 +507,8 @@ class VBFMergedPage(QWizardPage):
 
     def rerunVBF(self):
         new_guess = self.newGuessSpin.value()
-        tvipsFile = self.wizard().property("tvipsFile")
-        hf_path = self.wizard().property("hfPath")
+        tvipsFile = self.wizard().property("tvipsFile").replace('\\', '/')
+        hf_path = self.wizard().property("hfPath").replace('\\', '/')
         linescale = self.field("linescale")
         radius = self.field("radius")
         offsetX = int(self.field("offsetX") or 4)
@@ -455,23 +516,37 @@ class VBFMergedPage(QWizardPage):
         vbf_h = int(self.field("vbfH") or 10)
         vbf_w = int(self.field("vbfW") or 256)
         numframes_vbf = (vbf_h * vbf_w) + new_guess
-        command = (
-            'python ./tvips/recorderR.py --otype=VirtualBF --linscale=' + str(linescale) +
-            ' --numframes=' + str(numframes_vbf) +
-            ' --vbfradius=' + str(radius) +
-            ' --vbfcenter=' + str(offsetX) + 'x' + str(offsetY) +
-            ' --dimension=' + str(vbf_h) + 'x' + str(vbf_w) +
-            ' --skip=' + str(new_guess) +
-            ' "' + tvipsFile + '" "' + hf_path + '"'
-        )
-        self.vbfOutputTextEdit.append("Running command: " + command)
+
+        # Argument list
+        args = [
+            "./tvips/recorderR.py",
+            "--otype=VirtualBF",
+            "--linscale=" + str(linescale),
+            "--numframes=" + str(numframes_vbf),
+            "--vbfradius=" + str(radius),
+            "--vbfcenter=" + f"{offsetX}x{offsetY}",
+            "--dimension=" + f"{vbf_h}x{vbf_w}",
+            "--skip=" + str(new_guess),
+            tvipsFile,
+            hf_path
+        ]
+
+        # Python path from venv
+        python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+
+        # UI and process setup
+        self.vbfOutputTextEdit.append("Running command: " + python_path + " " + " ".join(args))
+
         if hasattr(self, 'vbfProgressBar'):
             self.vbfProgressBar.setRange(0, 0)
+
         self.vbfProcess = QProcess(self)
         self.vbfProcess.setProcessChannelMode(QProcess.MergedChannels)
         self.vbfProcess.readyReadStandardOutput.connect(self.handleVBFOutput)
         self.vbfProcess.finished.connect(self.virtualBFFinished)
-        self.vbfProcess.start(command)
+
+        self.vbfProcess.start(python_path, args)
+
 
 # ---------------- Page 3: Conversion & Batch Conversion ----------------
 class ConversionAndBatchPage(QWizardPage):
@@ -566,38 +641,49 @@ class ConversionAndBatchPage(QWizardPage):
             if not hf_path:
                 self.logTextEdit.append("Conversion file not found.")
                 return
-            run_string_0 = 'python ./tvips/recorderR.py --otype=blo'
-            filter_string = (f" --median={median} --gaussian={gaussian}") if use_filter else ''
-            binning_string = '' if binning == 1 else f" --binning={binning}"
-            
+
             with h5py.File(hf_path, 'r') as hf:
                 g1_name = 'Parameters_for_conversion'
                 n1 = hf.get(g1_name)
                 linescale_dataset = n1.get('Image_constrast')[()]
-                linescale_string = ' --linscale=' + str(linescale_dataset)[1:].replace("'", "")
-                image_string = ' --dimension=' + str(n1.get('Image_height')[()]) + 'x' + str(n1.get('Image_width')[()])
-                skip_string = ' --skip=' + str(n1.get('Starting_frame')[()])
-                file_path_string = str(n1.get('File_path')[()])[1:].replace("'", "")
-                diff_size_value = n1.get('Diff_size')[()]
-                diff_size_value = int(diff_size_value/binning)
+                linescale_string = "--linscale=" + str(linescale_dataset)[1:].replace("'", "")
+                image_string = "--dimension=" + str(n1.get('Image_height')[()]) + 'x' + str(n1.get('Image_width')[()])
+                skip_string = "--skip=" + str(n1.get('Starting_frame')[()])
+                file_path_string = str(n1.get('File_path')[()])[1:].replace("'", "").replace('\\', '/')
+                diff_size_value = int(n1.get('Diff_size')[()] / binning)
+
+            blo_path_string = (
+                file_path_string[:-10] + '_' + str(diff_size_value) + ('F.blo' if use_filter else '.blo')
+            ).replace('\\', '/')
+
+            # Assemble argument list
+            args = ["./tvips/recorderR.py", "--otype=blo"]
+            args.append(linescale_string)
+            if binning != 1:
+                args.append(f"--binning={binning}")
+            args.append(image_string)
+            args.append(skip_string)
             if use_filter:
-                blo_path_string = file_path_string[:-10] + '_' + str(diff_size_value) + 'F.blo'
-            else:
-                blo_path_string = file_path_string[:-10] + '_' + str(diff_size_value) + '.blo'
-            
-            run_string = (run_string_0 + linescale_string + binning_string + image_string +
-                          skip_string + filter_string + ' "' + file_path_string + '" ' +
-                          '"' + blo_path_string + '"')
-            self.logTextEdit.append("Running: " + run_string)
+                args.append(f"--median={median}")
+                args.append(f"--gaussian={gaussian}")
+            args.append(file_path_string)
+            args.append(blo_path_string)
+
+            # Log and run
+            python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+            self.logTextEdit.append("Running: " + python_path + " " + " ".join(args))
+
             self.progressBar.setRange(0, 0)
             self.process = QProcess(self)
             self.process.setProcessChannelMode(QProcess.MergedChannels)
             self.process.readyReadStandardOutput.connect(self.handleOutput)
             self.process.readyReadStandardError.connect(self.handleOutput)
             self.process.finished.connect(self.conversionFinished)
-            self.process.start(run_string)
+            self.process.start(python_path, args)
+
         except Exception as e:
             self.logTextEdit.append(f"Error processing file {hf_path}: {e}")
+
 
     def runBatchConversion(self):
         try:
@@ -605,14 +691,13 @@ class ConversionAndBatchPage(QWizardPage):
             median = self.medianSpin.value()
             gaussian = self.gaussianLineEdit.text()
             binning = self.binningSpin.value()
-            run_string_0 = 'python ./tvips/recorderR.py --otype=blo'
-            filter_string = f" --median={median} --gaussian={gaussian}" if use_filter else ''
-            binning_string = '' if binning == 1 else f" --binning={binning}"
 
-            # Update the internal file list from fileListWidget
+            # Path to the correct Python interpreter
+            python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
+
+            # Update internal file list from fileListWidget
             self.file_list = [self.fileListWidget.item(i).text() for i in range(self.fileListWidget.count())]
 
-            # Loop over each file in the internal file list
             count = 0
             for file in self.file_list:
                 try:
@@ -620,34 +705,49 @@ class ConversionAndBatchPage(QWizardPage):
                     with h5py.File(file, 'r') as hf:
                         group = hf.get('Parameters_for_conversion')
                         linescale_dataset = group.get('Image_contrast')[()]
-                        linescale_string = ' --linscale=' + str(linescale_dataset)[1:].replace("'", "")
-                        image_string = ' --dimension=' + str(group.get('Image_height')[()]) + 'x' + str(group.get('Image_width')[()])
-                        skip_string = ' --skip=' + str(group.get('Starting_frame')[()])
-                        file_path_string = str(group.get('File_path')[()])[1:].replace("'", "")
+                        linescale_string = "--linscale=" + str(linescale_dataset)[1:].replace("'", "")
+                        image_string = "--dimension=" + str(group.get('Image_height')[()]) + 'x' + str(group.get('Image_width')[()])
+                        skip_string = "--skip=" + str(group.get('Starting_frame')[()])
+                        file_path_string = str(group.get('File_path')[()])[1:].replace("'", "").replace("\\", "/")
                         diff_size_value = int(group.get('Diff_size')[()] / binning)
 
-                    if use_filter:
-                        blo_path_string = file_path_string[:-10] + '_' + str(diff_size_value) + 'F.blo'
-                    else:
-                        blo_path_string = file_path_string[:-10] + '_' + str(diff_size_value) + '.blo'
+                    blo_path_string = (
+                        file_path_string[:-10] + f"_{diff_size_value}" + ("F.blo" if use_filter else ".blo")
+                    ).replace("\\", "/")
 
-                    run_string = (run_string_0 + linescale_string + binning_string + image_string +
-                                  skip_string + filter_string + ' "' + file_path_string + '" ' +
-                                  '"' + blo_path_string + '"')
-                    self.logTextEdit.append("Running: " + run_string)
+                    # Build full argument list
+                    args = ["./tvips/recorderR.py", "--otype=blo"]
+                    args.append(linescale_string)
+                    if binning != 1:
+                        args.append(f"--binning={binning}")
+                    args.append(image_string)
+                    args.append(skip_string)
+                    if use_filter:
+                        args.append(f"--median={median}")
+                        args.append(f"--gaussian={gaussian}")
+                    args.append(file_path_string)
+                    args.append(blo_path_string)
+
+                    self.logTextEdit.append("Running: " + python_path + " " + " ".join(args))
                     self.progressBar.setRange(0, 0)
 
-                    self.process = QProcess(self)
-                    self.process.setProcessChannelMode(QProcess.MergedChannels)
-                    self.process.readyReadStandardOutput.connect(self.handleOutput)
-                    self.process.readyReadStandardError.connect(self.handleOutput)
-                    # Use lambda to delay the call until the process actually finishes
-                    self.process.finished.connect(lambda exitCode, exitStatus, count=count: self.conversionFinished(count))
-                    self.process.start(run_string)
+                    process = QProcess(self)
+                    process.setProcessChannelMode(QProcess.MergedChannels)
+                    process.readyReadStandardOutput.connect(self.handleOutput)
+                    process.readyReadStandardError.connect(self.handleOutput)
+                    process.finished.connect(lambda exitCode, exitStatus, count=count: self.conversionFinished(count))
+
+                    process.start(python_path, args)
+
+                    # If you want to store reference (e.g., cancel later), use self.process_list
+                    # self.process_list.append(process)
+
                 except Exception as e:
                     self.logTextEdit.append(f"Error processing file {file}: {e}")
+
         except Exception as e:
             self.logTextEdit.append(f"Error in runBatchConversion: {e}")
+
 
     def handleOutput(self):
         data = self.process.readAllStandardOutput().data().decode()
