@@ -3,17 +3,19 @@ import sys, os, time, math
 import numpy as np
 import h5py
 import cv2
+import re
 import subprocess
 from scipy.signal import find_peaks
 from skimage.metrics import structural_similarity as ssim
 import matplotlib.pyplot as plt
-
 from PyQt5 import uic
+from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import (QApplication, QWizard, QWizardPage, QFileDialog,
                              QMessageBox, QLabel, QVBoxLayout, QSizePolicy)
-from PyQt5.QtCore import Qt, pyqtSlot, QPoint, pyqtSignal, QProcess, QEvent
+from PyQt5.QtCore import QObject, Qt, pyqtSlot, QPoint, pyqtSignal, QProcess, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QColor
-
+from libertem.api import Context
+from libertem.io.dataset.base import TilingScheme
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -93,7 +95,39 @@ def find_start_from_vbf(vbf_image):
             new_guess = idx
             break
     return new_guess
+class BloToHDF5Worker(QObject):
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
 
+    def __init__(self, blo_path):
+        super().__init__()
+        self.blo_path = blo_path.replace('\\', '/')
+        self.hdf5_output = self.blo_path.replace('.blo', '.h5')
+
+    def run(self):
+        try:
+            ctx = Context()
+            ds = ctx.load("blo", path=self.blo_path)
+
+            frames = []
+            for partition in ds.get_partitions():
+                ts = TilingScheme.make_for_shape(
+                    tileshape=partition.shape,
+                    dataset_shape=partition.shape,
+                    intent='partition'
+                )
+                for tile in partition.get_tiles(ts, dest_dtype='uint8'):
+                    frames.append(tile.data)
+
+            full_data = np.concatenate(frames, axis=0)
+
+            with h5py.File(self.hdf5_output, "w") as hfile:
+                hfile.create_dataset("data", data=full_data)
+
+            self.finished.emit(self.hdf5_output)
+
+        except Exception as e:
+            self.error.emit(str(e))
 # ---------------- Custom Widget: DraggableMaskLabel ----------------
 class DraggableMaskLabel(QLabel):
     maskMoved = pyqtSignal(tuple)
@@ -174,6 +208,7 @@ class ParameterAndMaskCheckPage(QWizardPage):
         self.registerField("offsetY", self.offsetYSpin)
         self.registerField("radius", self.radiusSpin)
         self.registerField("guessFirstFrame", self.guessFirstFrameSpin)
+        self.manualConvertButton.clicked.connect(self.manualBloToHdf5Conversion)
 
         self.browseButton.clicked.connect(self.browseFile)
         self.checkMaskButton.clicked.connect(self.checkMaskPosition)
@@ -326,6 +361,51 @@ class ParameterAndMaskCheckPage(QWizardPage):
     @pyqtSlot(tuple)
     def updateMaskPositionLabel(self, pos):
         self.maskPositionLabel.setText(f"Mask Position: ({pos[0]}, {pos[1]})")
+        
+    def manualBloToHdf5Conversion(self):
+        blo_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select a BLO file for conversion",
+            "",
+            "BLO Files (*.blo)"
+        )
+        if not blo_path:
+            return
+
+        # Create thread and worker
+        self.thread = QThread()
+        self.worker = BloToHDF5Worker(blo_path)
+        self.worker.moveToThread(self.thread)
+
+        # Connect signals
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.onHDF5ConversionSuccess)
+        self.worker.error.connect(self.onHDF5ConversionError)
+
+        # Clean up thread
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.worker.error.connect(self.thread.quit)
+        self.worker.error.connect(self.worker.deleteLater)
+
+        # Start
+            # Start thread
+        self.progressBarStep1.setRange(0, 0)
+        self.thread.start()
+    def onHDF5ConversionSuccess(self, output_path):
+        self.progressBarStep1.setRange(0, 100)
+        self.progressBarStep1.setValue(100)
+        self.logTextEdit.append(f"[SUCCESS] HDF5 saved to: {output_path}")
+        QMessageBox.information(self, "Conversion Complete", f"HDF5 file created:\n{output_path}")
+
+
+    def onHDF5ConversionError(self, error_message):
+        self.progressBarStep1.setRange(0, 100)
+        self.progressBarStep1.setValue(0)
+        self.logTextEdit.append(f"[ERROR] Manual BLO to HDF5 conversion failed: {error_message}")
+        QMessageBox.critical(self, "Conversion Failed", error_message)
 
 # ---------------- Page 2: VBF Generation & Analysis ----------------
 class VBFMergedPage(QWizardPage):
@@ -558,6 +638,7 @@ class ConversionAndBatchPage(QWizardPage):
         self.runSingleConversionButton.clicked.connect(self.runSingleConversion)
         self.addFileButton.clicked.connect(self.addFile)
         self.addTaskButton.clicked.connect(self.addtask)
+        self.manualConvertButton.clicked.connect(self.manualBloToHdf5Conversion)
 
         # Flag indicating whether the conversion process has completed.
         self._conversion_complete = False
@@ -759,44 +840,106 @@ class ConversionAndBatchPage(QWizardPage):
         self.logTextEdit.append("Batch conversion completed!")
         # === Check if HDF5 conversion is requested ===
         if self.convertToHDF5CheckBox.isChecked():
+            # Try to determine .blo path
             try:
-                from libertem.api import Context
-                from libertem.io.dataset.base import TilingScheme
-
-                hf_path = self.wizard().property("hfPath")
-                file_path = str(self.wizard().property("tvipsFile"))[1:].replace("'", "")
+                import re, glob, os
+                file_path = str(self.wizard().property("tvipsFile")).strip().replace('\\', '/')
+                base_path = re.sub(r'_\d{3}$', '', os.path.splitext(file_path)[0])
+                filter_suffix = "F.blo" if self.useFilterCheck.isChecked() else ".blo"
                 diff_image = self.wizard().property("diff_image")
-                diff_size = diff_image.shape[1] if diff_image is not None else -1
-                diff_size = int(diff_size / self.binningSpin.value()) if diff_size > 0 else 256
-                blo_path = file_path[:-10] + f'_{diff_size}F.blo' if self.useFilterCheck.isChecked() else file_path[:-10] + f'_{diff_size}.blo'
-                hdf5_output = blo_path.replace('.blo', '.h5')
+                blo_path = None
 
-                self.logTextEdit.append("Starting BLO to HDF5 conversion...")
-                ctx = Context()
-                ds = ctx.load("blo", path=blo_path)
+                if diff_image is not None and diff_image.shape[1] > 0:
+                    diff_size = int(diff_image.shape[1] / self.binningSpin.value())
+                    candidate = f"{base_path}_{diff_size}{filter_suffix}"
+                    if os.path.exists(candidate):
+                        blo_path = candidate
+                if blo_path is None:
+                    candidates = glob.glob(f"{base_path}_*{filter_suffix}")
+                    if len(candidates) == 1:
+                        blo_path = candidates[0]
+                    else:
+                        self.logTextEdit.append("[ERROR] Could not determine a unique BLO file for conversion.")
+                        return
 
-                frames_list = []
-                for partition in ds.get_partitions():
-                    ts = TilingScheme.make_for_shape(
-                        tileshape=partition.shape, 
-                        dataset_shape=partition.shape,
-                        intent='partition'
-                    )
-                    for tile in partition.get_tiles(ts, dest_dtype='uint8'):
-                        frames_list.append(tile.data)
+                self.logTextEdit.append(f"[INFO] Converting BLO to HDF5 in background: {blo_path}")
 
-                full_data = np.concatenate(frames_list, axis=0)
-                with h5py.File(hdf5_output, "w") as hfile:
-                    hfile.create_dataset("data", data=full_data)
-                self.logTextEdit.append(f"Saved HDF5 to: {hdf5_output}")
+                # Threaded background conversion
+                from PyQt5.QtCore import QThread
+                self.thread = QThread()
+                self.worker = BloToHDF5Worker(blo_path)
+                self.worker.moveToThread(self.thread)
+
+                self.thread.started.connect(self.worker.run)
+                self.worker.finished.connect(self.onHDF5ConversionSuccess)
+                self.worker.error.connect(self.onHDF5ConversionError)
+
+                self.worker.finished.connect(self.thread.quit)
+                self.worker.finished.connect(self.worker.deleteLater)
+                self.thread.finished.connect(self.thread.deleteLater)
+                self.worker.error.connect(self.thread.quit)
+                self.worker.error.connect(self.worker.deleteLater)
+
+                self.progressBar.setRange(0, 0)
+                self.thread.start()
+
             except Exception as e:
-                self.logTextEdit.append(f"Error during BLO to HDF5 conversion: {e}")
+                self.logTextEdit.append(f"[ERROR] Failed to start HDF5 conversion: {e}")
+
         QMessageBox.information(self, "Batch Conversion", f"Sequence: {count} conversion completed successfully!")
         # Mark conversion as complete and notify the wizard.
         self._conversion_complete = True
         self.completeChanged.emit()
+        
+
+    def manualBloToHdf5Conversion(self):
+        blo_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select a BLO file for conversion",
+            "",
+            "BLO Files (*.blo)"
+        )
+        if not blo_path:
+            self.logTextEdit.append("[INFO] Manual BLO selection canceled.")
+            return
+
+        self.logTextEdit.append(f"[INFO] Manually selected BLO file: {blo_path}")
+        self.logTextEdit.append("[INFO] Converting BLO to HDF5 in background...")
+
+        # Create thread and worker
+        self.thread = QThread()
+        self.worker = BloToHDF5Worker(blo_path)
+        self.worker.moveToThread(self.thread)
+
+        # Connect signals
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.onHDF5ConversionSuccess)
+        self.worker.error.connect(self.onHDF5ConversionError)
+
+        # Clean up thread
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.worker.error.connect(self.thread.quit)
+        self.worker.error.connect(self.worker.deleteLater)
+
+        # Start
+            # Start thread
+        self.progressBar.setRange(0, 0)
+        self.thread.start()
+    def onHDF5ConversionSuccess(self, output_path):
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setValue(100)
+        self.logTextEdit.append(f"[SUCCESS] HDF5 saved to: {output_path}")
+        QMessageBox.information(self, "Conversion Complete", f"HDF5 file created:\n{output_path}")
 
 
+    def onHDF5ConversionError(self, error_message):
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setValue(0)
+        self.logTextEdit.append(f"[ERROR] Manual BLO to HDF5 conversion failed: {error_message}")
+        QMessageBox.critical(self, "Conversion Failed", error_message)
 # ---------------- Main Wizard ----------------
 class MyWizard(QWizard):
     def __init__(self, parent=None):

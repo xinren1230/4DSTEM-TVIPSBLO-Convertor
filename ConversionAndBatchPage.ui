@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>502</width>
-    <height>523</height>
+    <height>529</height>
    </rect>
   </property>
   <property name="title">
@@ -175,6 +175,13 @@
        <widget class="QPushButton" name="runConversionButton">
         <property name="text">
          <string>Run Batch Conversion</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="manualConvertButton">
+        <property name="text">
+         <string>Select BLO file and convert to HDF5 for py4DSTEM</string>
         </property>
        </widget>
       </item>

@@ -44,28 +44,28 @@
         </item>
        </layout>
       </item>
-      <item row="1" column="0">
+      <item row="2" column="0">
        <widget class="QLabel" name="linescaleLabel">
         <property name="text">
          <string>Intensity Range:</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
+      <item row="2" column="1">
        <widget class="QLineEdit" name="linescaleEdit">
         <property name="text">
          <string>0-2000</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
+      <item row="3" column="0">
        <widget class="QLabel" name="numframesLabel">
         <property name="text">
          <string>Number of Frames:</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
+      <item row="3" column="1">
        <widget class="QSpinBox" name="numframesSpin">
         <property name="minimum">
          <number>0</number>
@@ -78,14 +78,14 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="whichFrameLabel">
         <property name="text">
          <string>Which Frame to Check Mask:</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="4" column="1">
        <widget class="QSpinBox" name="whichFrameSpin">
         <property name="minimum">
          <number>0</number>
@@ -98,7 +98,7 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
+      <item row="5" column="1">
        <widget class="QPushButton" name="checkMaskButton">
         <property name="minimumSize">
          <size>
@@ -111,14 +111,14 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
        <widget class="QLabel" name="guessFirstFrameLabel">
         <property name="text">
          <string>User Guess for Starting Frame:</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="QSpinBox" name="guessFirstFrameSpin">
         <property name="minimum">
          <number>0</number>
@@ -131,14 +131,14 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QLabel" name="vbfHLabel">
         <property name="text">
          <string>Virtual BF Height (vbf_h):</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="7" column="1">
        <widget class="QSpinBox" name="vbfHSpin">
         <property name="minimum">
          <number>1</number>
@@ -151,14 +151,14 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QLabel" name="vbfWLabel">
         <property name="text">
          <string>Virtual BF Width (vbf_w):</string>
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
+      <item row="8" column="1">
        <widget class="QSpinBox" name="vbfWSpin">
         <property name="minimum">
          <number>1</number>
@@ -293,6 +293,13 @@
      </property>
      <property name="value">
       <number>0</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="manualConvertButton">
+     <property name="text">
+      <string>Select BLO file and convert to HDF5 for py4DSTEM</string>
      </property>
     </widget>
    </item>
