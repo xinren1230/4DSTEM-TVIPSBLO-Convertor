@@ -38,8 +38,8 @@ Ensure you have the following installed:
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/4DSTEM-Processing-Wizard.git
-   cd 4DSTEM-Processing-Wizard
+   git clone https://github.com/xinren1230/4DSTEM-TVIPSBLO-Convertor.git
+   cd 4DSTEM-TVIPSBLO-Convertor
    
 conda create -n TVIPSBLO python=3.7
 
