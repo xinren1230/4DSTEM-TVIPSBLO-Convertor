@@ -275,6 +275,10 @@ def main():
    
     parser.add_argument('--depth', choices=("uint8", "uint16", "int16"), default=None)
     parser.add_argument('--linscale', help="Scale 16 bit data linear to 8 bit using the given range. Eg. 100-1000. Default: min, max", default=None)
+    parser.add_argument('--scale', choices=('log', 'sqrt', 'none'), default='none',
+                    help='Apply intensity scaling: log=log1p(x), sqrt=sqrt(x), none=raw') #12112025 Xinren
+
+    
     parser.add_argument('--coffset', action='store_true', default=False)
     
     #Virtual BF/blo options
@@ -299,7 +303,9 @@ def main():
     
     
     opts = parser.parse_args()
-    
+
+        
+        
     def determine_recorder_image_dimension():
         #image dimension
         xdim, ydim = 0, 0
@@ -318,20 +324,57 @@ def main():
     assert (os.path.exists(opts.input))
     
     scalefunc = None
-    binfunc = lambda x: x
-    if opts.linscale is not None or opts.binning is not None:
-        if opts.binning is not None and opts.linscale is None:
-            logging.info("Binning data by {:d}".format(opts.binning))
-            binfunc = lambda x: bin2(x, opts.binning)
-            scalefunc = lambda x: scale16to8(binfunc(x))
-        elif opts.binning is not None and opts.linscale is not None:
-            binfunc = lambda x: bin2(x, opts.binning)
-        if opts.linscale:
-            min, max = map(float, opts.linscale.split('-'))
-            scalefunc = lambda x: scale16to8(binfunc(x), min, max)
-            logging.info("Mapping range of {}-{} to 0-255".format(min, max))
+    
+    #Xinren 12112025
+    # =====================================================
+    # Define intensity scaling function (supports log/sqrt)
+    # =====================================================
+    binfunc = lambda x: x  # default no bin
+    if opts.binning is not None:
+        logging.info(f"Binning data by {opts.binning}")
+        binfunc = lambda x: bin2(x, opts.binning)
+
+
+    def auto_scale16to8(img, vmin=None, vmax=None):
+        img = binfunc(img).astype(np.float32)
+        if vmin is None or vmax is None:
+            vmin, vmax = float(np.min(img)), float(np.max(img))
+        img = np.clip((img - vmin) / (vmax - vmin + 1e-6), 0, 1) * 255
+        return img.astype(np.uint8)
+
+    if getattr(opts, "scale", None) == "log":
+        logging.info("[INFO] Applying log1p intensity transform.")
+        scalefunc = lambda x: np.log1p(auto_scale16to8(x, *map(float, opts.linscale.split('-'))) if opts.linscale else np.log1p(auto_scale16to8(x)))
+    elif getattr(opts, "scale", None) == "sqrt":
+        logging.info("[INFO] Applying sqrt intensity transform.")
+        scalefunc = lambda x: np.sqrt(auto_scale16to8(x, *map(float, opts.linscale.split('-'))) if opts.linscale else np.sqrt(auto_scale16to8(x)))
     else:
-        scalefunc = lambda x: scale16to8(binfunc(x))
+        if opts.linscale:
+            vmin, vmax = map(float, opts.linscale.split('-'))
+            logging.info(f"[INFO] Linear scaling {vmin}-{vmax}")
+            scalefunc = lambda x: auto_scale16to8(x, vmin, vmax)
+        else:
+            scalefunc = lambda x: auto_scale16to8(x)
+
+    
+    
+    #binfunc = lambda x: x
+    #if opts.linscale is not None or opts.binning is not None:  
+    #    if opts.binning is not None and opts.linscale is None:
+    #        logging.info("Binning data by {:d}".format(opts.binning))
+    #        binfunc = lambda x: bin2(x, opts.binning)
+    #        scalefunc = lambda x: scale16to8(binfunc(x))
+    #    elif opts.binning is not None and opts.linscale is not None:
+    #        binfunc = lambda x: bin2(x, opts.binning)
+    #    if opts.linscale:
+    #        min, max = map(float, opts.linscale.split('-'))
+    #        scalefunc = lambda x: scale16to8(binfunc(x), min, max)
+    #        logging.info("Mapping range of {}-{} to 0-255".format(min, max))
+    #else:
+        #scalefunc = lambda x: scale16to8(binfunc(x))
+
+
+
             
     
     #read tvips file

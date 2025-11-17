@@ -45,6 +45,30 @@
      </property>
     </widget>
    </item>
+   
+   <item>
+	 <widget class="QCheckBox" name="useLogCheck">
+	  <property name="text">
+	   <string>Use Log Intensity</string>
+	  </property>
+	  <property name="checked">
+	   <bool>false</bool>
+	  </property>
+	 </widget>
+	</item>
+
+	<item>
+	 <widget class="QCheckBox" name="useSqrtCheck">
+	  <property name="text">
+	   <string>Use Square Root Intensity</string>
+	  </property>
+	  <property name="checked">
+	   <bool>false</bool>
+	  </property>
+	 </widget>
+	</item>
+
+   
    <item>
     <layout class="QFormLayout" name="batchFormLayout">
      <item row="0" column="0">

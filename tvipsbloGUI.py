@@ -719,6 +719,10 @@ class ConversionAndBatchPage(QWizardPage):
             gaussian = self.gaussianLineEdit.text()
             binning = self.binningSpin.value()
             hf_path = self.wizard().property("hfPath")
+            # ----  intensity scaling options ----
+            use_log = self.useLogCheck.isChecked()
+            use_sqrt = self.useSqrtCheck.isChecked()
+
             if not hf_path:
                 self.logTextEdit.append("Conversion file not found.")
                 return
@@ -733,13 +737,37 @@ class ConversionAndBatchPage(QWizardPage):
                 file_path_string = str(n1.get('File_path')[()])[1:].replace("'", "").replace('\\', '/')
                 diff_size_value = int(n1.get('Diff_size')[()] / binning)
 
+            
+            scale_suffix = ""
+            if self.useLogCheck.isChecked():
+                scale_suffix = "_log"
+            elif self.useSqrtCheck.isChecked():
+                scale_suffix = "_sqrt"
+
+            #  intensity tag ---
+            linescale_text = str(self.field("linescale")).strip()
+            range_tag = ""
+            if linescale_text and "-" in linescale_text:
+                range_tag = "_" + linescale_text.replace("-", "_")
+
             blo_path_string = (
-                file_path_string[:-10] + '_' + str(diff_size_value) + ('F.blo' if use_filter else '.blo')
-            ).replace('\\', '/')
+                file_path_string[:-10]
+                + f"_{diff_size_value}{range_tag}"
+                + scale_suffix
+                + ("F.blo" if use_filter else ".blo")
+            ).replace("\\", "/")
+
 
             # Assemble argument list
             args = ["./tvips/recorderR.py", "--otype=blo"]
             args.append(linescale_string)
+            if use_log:
+                args.append("--scale=log")
+            elif use_sqrt:
+                args.append("--scale=sqrt")
+            else:
+                args.append("--scale=none")
+
             if binning != 1:
                 args.append(f"--binning={binning}")
             args.append(image_string)
@@ -772,6 +800,8 @@ class ConversionAndBatchPage(QWizardPage):
             median = self.medianSpin.value()
             gaussian = self.gaussianLineEdit.text()
             binning = self.binningSpin.value()
+            use_log = self.useLogCheck.isChecked()
+            use_sqrt = self.useSqrtCheck.isChecked()
 
             # Path to the correct Python interpreter
             python_path = os.path.join(os.getcwd(), "tvips_converter_env", "Scripts", "python.exe").replace("\\", "/")
@@ -792,13 +822,39 @@ class ConversionAndBatchPage(QWizardPage):
                         file_path_string = str(group.get('File_path')[()])[1:].replace("'", "").replace("\\", "/")
                         diff_size_value = int(group.get('Diff_size')[()] / binning)
 
+                    # Add suffix depending on log/sqrt selection
+                    scale_suffix = ""
+                    if use_log:
+                        scale_suffix = "_log"
+                    elif use_sqrt:
+                        scale_suffix = "_sqrt"
+
+                    #  intensity tag ---
+                    linescale_text = str(self.field("linescale")).strip()
+                    range_tag = ""
+                    if linescale_text and "-" in linescale_text:
+                        range_tag = "_" + linescale_text.replace("-", "_")
+
                     blo_path_string = (
-                        file_path_string[:-10] + f"_{diff_size_value}" + ("F.blo" if use_filter else ".blo")
+                        file_path_string[:-10]
+                        + f"_{diff_size_value}{range_tag}"
+                        + scale_suffix
+                        + ("F.blo" if use_filter else ".blo")
                     ).replace("\\", "/")
+
 
                     # Build full argument list
                     args = ["./tvips/recorderR.py", "--otype=blo"]
                     args.append(linescale_string)
+                    if use_log:
+                        args.append("--scale=log")
+                    elif use_sqrt:
+                        args.append("--scale=sqrt")
+                    else:
+                        args.append("--scale=none")
+
+                        
+                        
                     if binning != 1:
                         args.append(f"--binning={binning}")
                     args.append(image_string)
