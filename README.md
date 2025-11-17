@@ -23,6 +23,11 @@ This repository contains a PyQt5-based wizard application for processing TVIPS d
 
 ### Prerequisites
 
+
+Download Microsoft C++ Build Tools from https://visualstudio.microsoft.com/visual-cpp-build-tools/
+And install Desktop development with C++ (Inside Visual Studio Build Tools)
+
+
 Ensure you have the following installed:
 - Python 3.7 (or later)
 - [PyQt5](https://pypi.org/project/PyQt5/)
@@ -33,13 +38,15 @@ Ensure you have the following installed:
 - [scikit-image](https://pypi.org/project/scikit-image/)
 - [Matplotlib](https://pypi.org/project/matplotlib/)
 
+or simply use the install.bat file to install and also ignore below steps.
+
 ### Setup Instructions
 
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/4DSTEM-Processing-Wizard.git
-   cd 4DSTEM-Processing-Wizard
+   git clone https://github.com/xinren1230/4DSTEM-TVIPSBLO-Convertor.git
+   cd 4DSTEM-TVIPSBLO-Convertor
    
 conda create -n TVIPSBLO python=3.7
 
