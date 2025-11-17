@@ -29,7 +29,7 @@ And install Desktop development with C++ (Inside Visual Studio Build Tools)
 
 
 Ensure you have the following installed:
-- Python 3.7 (or later)
+- Python 3.7.3 
 - [PyQt5](https://pypi.org/project/PyQt5/)
 - [NumPy](https://pypi.org/project/numpy/)
 - [h5py](https://pypi.org/project/h5py/)
@@ -38,26 +38,10 @@ Ensure you have the following installed:
 - [scikit-image](https://pypi.org/project/scikit-image/)
 - [Matplotlib](https://pypi.org/project/matplotlib/)
 
-or simply use the install.bat file to install and also ignore below steps.
 
 ### Setup Instructions
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/xinren1230/4DSTEM-TVIPSBLO-Convertor.git
-   cd 4DSTEM-TVIPSBLO-Convertor
-   
-conda create -n TVIPSBLO python=3.7
-
-
-conda activate TVIPSBLO
-
-
-pip install PyQt5 numpy h5py opencv-python scipy scikit-image matplotlib
-
-
-python tvipsGUI.py
+1. **Installation**
+use the install.bat file to install.
 
 ### Usage
 Step 1: Parameter Selection & Mask Check
